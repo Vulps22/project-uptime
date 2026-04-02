@@ -4,6 +4,14 @@ on:
   schedule:
     - cron: '0 12 * * 4' # Every Thursday at noon UTC
   workflow_dispatch:
+    inputs:
+      force_action:
+        description: 'Force a cycle for testing (bypasses schedule guards)'
+        required: true
+        type: choice
+        options:
+          - freeze
+          - release
 
 permissions:
   contents: write
@@ -40,38 +48,57 @@ jobs:
           VERSION="v${YEAR}.${MONTH}.${RELEASE}"
           FREEZE_BRANCH="freeze/${VERSION}"
 
-          WEEK=$(date +%V)
-          WEEK=$((10#$WEEK))
-          echo "ISO week: $WEEK — target version: ${VERSION}"
+          FORCE="${{ github.event.inputs.force_action }}"
 
-          if (( WEEK % 2 == 1 )); then
-            # ── Odd week → freeze? ─────────────────────────────────────────
-            LAST_FREEZE=$(git ls-remote --heads origin 'freeze/v*' \
-              | awk '{print $2}' | sed 's|refs/heads/||' | sort -V | tail -1)
-
-            if [[ -z "$LAST_FREEZE" ]]; then
-              # No freeze branches yet — always proceed
-              NEW_COMMITS=1
+          if [[ -n "$FORCE" ]]; then
+            # ── Manual trigger — bypass week parity and commit guards ──────
+            if [[ "$FORCE" == "release" ]]; then
+              if git ls-remote --heads origin "${FREEZE_BRANCH}" | grep -q "${FREEZE_BRANCH}"; then
+                ACTION=release
+                echo "Forced release — freeze branch ${FREEZE_BRANCH} found"
+              else
+                ACTION=skip
+                echo "::warning::Forced release — no freeze branch for ${VERSION}, skipping"
+              fi
             else
-              NEW_COMMITS=$(git log "origin/${LAST_FREEZE}..origin/main" --oneline | wc -l)
-            fi
-
-            if (( NEW_COMMITS > 0 )); then
               ACTION=freeze
-              echo "Freeze week — ${NEW_COMMITS} new commit(s) since last freeze, creating ${FREEZE_BRANCH}"
-            else
-              ACTION=skip
-              echo "Freeze week — no new commits since last freeze, skipping"
+              echo "Forced freeze — skipping new-commits guard"
             fi
 
           else
-            # ── Even week → release? ───────────────────────────────────────
-            if git ls-remote --heads origin "${FREEZE_BRANCH}" | grep -q "${FREEZE_BRANCH}"; then
-              ACTION=release
-              echo "Release week — freeze branch ${FREEZE_BRANCH} found, releasing"
+            # ── Scheduled run ──────────────────────────────────────────────
+            WEEK=$(date +%V)
+            WEEK=$((10#$WEEK))
+            echo "ISO week: $WEEK — target version: ${VERSION}"
+
+            if (( WEEK % 2 == 1 )); then
+              # ── Odd week → freeze? ───────────────────────────────────────
+              LAST_FREEZE=$(git ls-remote --heads origin 'freeze/v*' \
+                | awk '{print $2}' | sed 's|refs/heads/||' | sort -V | tail -1)
+
+              if [[ -z "$LAST_FREEZE" ]]; then
+                NEW_COMMITS=1
+              else
+                NEW_COMMITS=$(git log "origin/${LAST_FREEZE}..origin/main" --oneline | wc -l)
+              fi
+
+              if (( NEW_COMMITS > 0 )); then
+                ACTION=freeze
+                echo "Freeze week — ${NEW_COMMITS} new commit(s) since last freeze, creating ${FREEZE_BRANCH}"
+              else
+                ACTION=skip
+                echo "Freeze week — no new commits since last freeze, skipping"
+              fi
+
             else
-              ACTION=skip
-              echo "Release week — no freeze branch for ${VERSION}, skipping"
+              # ── Even week → release? ─────────────────────────────────────
+              if git ls-remote --heads origin "${FREEZE_BRANCH}" | grep -q "${FREEZE_BRANCH}"; then
+                ACTION=release
+                echo "Release week — freeze branch ${FREEZE_BRANCH} found, releasing"
+              else
+                ACTION=skip
+                echo "Release week — no freeze branch for ${VERSION}, skipping"
+              fi
             fi
           fi
 
