@@ -19,6 +19,31 @@ export interface IMonitorScheduler {
   stop(): void;
 }
 
+export type AuthType = 'PUBLIC' | 'RESTRICTED';
+
+export interface EndpointParameter {
+  name: string;
+  type: string;
+  requiredBy: string[]; // HTTP methods that require this parameter e.g. ['GET', 'POST']
+}
+
+export interface EndpointRequest {
+  endpointParams: Record<string, string>;
+  urlParams: Record<string, string>;
+}
+
+export interface IManagedEndpoint {
+  description: string;
+  auth: AuthType;
+  endpointParameters?: EndpointParameter[];
+  urlParameters?: EndpointParameter[];
+
+  get?(req: EndpointRequest): unknown;
+  post?(req: EndpointRequest): unknown;
+  put?(req: EndpointRequest): unknown;
+  delete?(req: EndpointRequest): unknown;
+}
+
 /** A Discord event handler object. */
 export interface IEvent {
   event: Events;

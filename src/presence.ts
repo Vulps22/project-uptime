@@ -1,13 +1,18 @@
 import { Client } from "discord.js";
 import type { IPresenceChecker } from "./types.js";
 
-/**
- * Checks Discord user presence across all guilds the bot is in.
- * "Online" is defined as any status that is not "offline" —
- * i.e. online, idle, or dnd are all considered healthy.
- */
 export class PresenceChecker implements IPresenceChecker {
+  private static instance: PresenceChecker;
+
   constructor(private readonly client: Client) {}
+
+  static getInstance(client?: Client): PresenceChecker {
+    if (!PresenceChecker.instance) {
+      if (!client) throw new Error("PresenceChecker has not been initialised.");
+      PresenceChecker.instance = new PresenceChecker(client);
+    }
+    return PresenceChecker.instance;
+  }
 
   isOnline(snowflakeId: string): boolean {
     for (const guild of this.client.guilds.cache.values()) {
