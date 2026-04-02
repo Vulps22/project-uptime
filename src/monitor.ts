@@ -12,6 +12,11 @@ export class MonitorScheduler implements IMonitorScheduler {
   ) {}
 
   start(): void {
+          if (Object.keys(this.config).length === 0) {
+        console.log("[Monitor] No monitored users — Disabling monitor scheduler.");
+        return;
+      }
+
     if (this.intervalId !== null) return;
     console.log("[Monitor] Starting — checking every 5 minutes.");
     this.intervalId = setInterval(() => this.tick(), INTERVAL_MS);

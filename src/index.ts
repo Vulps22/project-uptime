@@ -4,7 +4,7 @@ import { HeartbeatService } from "./heartbeat.js";
 import { MonitorScheduler } from "./monitor.js";
 import { PresenceChecker } from "./presence.js";
 import { EventRegisterService } from "./EventRegisterService.js";
-import { startApi } from "./api.js";
+import { EndpointManagerService } from "./EndpointManagerService.js";
 import config from "./config.json";
 
 const token = process.env.BOT_TOKEN;
@@ -21,11 +21,11 @@ const client = new Client({
 });
 
 const heartbeatService = new HeartbeatService();
-const presenceChecker = new PresenceChecker(client);
+const presenceChecker = PresenceChecker.getInstance(client);
 const scheduler = new MonitorScheduler(config, presenceChecker, heartbeatService);
 
 EventRegisterService.getInstance({ client, config, heartbeatService, scheduler }).register();
-startApi(presenceChecker);
+EndpointManagerService.getInstance().register().listen(3005);
 
 process.on("SIGINT", () => {
   scheduler.stop();
