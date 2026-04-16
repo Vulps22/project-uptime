@@ -2,4 +2,6 @@ services:
   uptime-bot:
     image: ${DOCKERHUB_USERNAME}/project-uptime:latest
     restart: unless-stopped
+    ports:
+      - "3005:3005"
     env_file: .env
