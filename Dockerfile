@@ -18,5 +18,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 
+# Default empty config — override by mounting a config.json at /app/config.json
+RUN echo '{}' > /app/config.json
+
 USER node
 CMD ["node", "dist/index.js"]
